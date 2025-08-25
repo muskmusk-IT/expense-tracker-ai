@@ -1,1 +1,13 @@
+expense-tracker-ai/
+│
+├── data/
+│   └── expenses.csv         # catatan transaksi
+│
+├── scripts/
+│   ├── add_expense.py       # script nambah data ke CSV
+│   └── generate_report.py   # script bikin grafik
+│
+└── .github/
+    └── workflows/
+        └── update-report.yml   # GitHub Actions
 
