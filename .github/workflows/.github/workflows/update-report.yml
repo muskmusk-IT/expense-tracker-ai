@@ -32,7 +32,7 @@ jobs:
           ls -R
 
       # Pakai Python inline, jadi gak peduli scripts/generate_report.py ada/tidak
-      - name: Generate report (inline)
+            - name: Generate Report
         run: |
           python - << 'PY'
           import os
@@ -43,31 +43,28 @@ jobs:
           out_path = "data/weekly_report.png"
 
           if not os.path.exists(csv_path):
-            print("⚠️ CSV tidak ditemukan, skip.")
-            raise SystemExit(0)
-
-          try:
-            df = pd.read_csv(csv_path, names=["Tanggal","Toko","Kategori","Total"])
-            df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
-            df["Total"] = pd.to_numeric(df["Total"], errors="coerce")
-            df = df.dropna()
-
-            if df.empty:
-              print("⚠️ CSV kosong/setelah dibersihkan tidak ada data valid, skip.")
+              print("⚠️ CSV tidak ditemukan, skip.")
               raise SystemExit(0)
 
-            weekly = df.groupby(pd.Grouper(key="Tanggal", freq="W"))["Total"].sum()
+          df = pd.read_csv(csv_path, names=["Tanggal","Toko","Kategori","Total"])
+          df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
+          df["Total"] = pd.to_numeric(df["Total"], errors="coerce")
+          df = df.dropna()
 
-            plt.figure(figsize=(8,4))
-            weekly.plot(kind="bar", title="Pengeluaran Mingguan")
-            plt.ylabel("Total (Rp)")
-            plt.tight_layout()
-            plt.savefig(out_path)
-            print(f"📊 Berhasil bikin: {out_path}")
-          except Exception as e:
-            print("❌ Error:", e)
-            raise
+          if df.empty:
+              print("⚠️ CSV kosong, skip.")
+              raise SystemExit(0)
+
+          weekly = df.groupby(pd.Grouper(key="Tanggal", freq="W"))["Total"].sum()
+
+          plt.figure(figsize=(8,4))
+          weekly.plot(kind="bar", title="Pengeluaran Mingguan")
+          plt.ylabel("Total (Rp)")
+          plt.tight_layout()
+          plt.savefig(out_path)
+          print(f"📊 Berhasil bikin: {out_path}")
           PY
+
 
       - name: Commit and Push Report
         run: |
