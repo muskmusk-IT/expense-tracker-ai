@@ -1,22 +1,17 @@
-import csv
-import sys
-from datetime import datetime
+import pandas as pd
+import matplotlib.pyplot as plt
 
-"""
-Cara pakai:
-python scripts/add_expense.py "2025-08-25" "Kopi Kenangan" "Makan & Minum" 32000
-"""
+df = pd.read_csv("data/expenses.csv", names=["Tanggal", "Toko", "Kategori", "Total"])
+df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
+df["Total"] = pd.to_numeric(df["Total"], errors="coerce")
 
-# Ambil argumen dari terminal
-tanggal = sys.argv[1]
-toko = sys.argv[2]
-kategori = sys.argv[3]
-total = sys.argv[4]
+# Rekap mingguan
+weekly = df.groupby(pd.Grouper(key="Tanggal", freq="W"))["Total"].sum()
 
-# Simpan ke CSV
-with open("data/expenses.csv", "a", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerow([tanggal, toko, kategori, total])
+plt.figure(figsize=(8,4))
+weekly.plot(kind="bar", title="Pengeluaran Mingguan")
+plt.ylabel("Total (Rp)")
 
-print(f"✅ Data tersimpan: {tanggal}, {toko}, {kategori}, {total}")
-
+plt.tight_layout()
+plt.savefig("data/weekly_report.png")
+print("📊 Laporan mingguan berhasil dibuat: data/weekly_report.png")
