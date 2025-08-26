@@ -1,6 +1,6 @@
 name: Ingest Receipt Payload
 
-# Penting: kasih hak nulis ke GITHUB_TOKEN di workflow
+# penting: kasih izin tulis ke GITHUB_TOKEN
 permissions:
   contents: write
 
@@ -8,8 +8,8 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'payloads/**/*.csv'
-  workflow_dispatch: {}
+      - 'payloads/**/*.csv'     # jalan tiap ada CSV baru di folder payloads/
+  workflow_dispatch: {}          # bisa dijalankan manual dari tab Actions
 
 jobs:
   ingest:
@@ -21,6 +21,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
+      - name: Show payloads (debug)
+        run: |
+          echo "Branch: ${GITHUB_REF_NAME}"
+          ls -la
+          ls -la payloads || true
+
+      - name: Append payloads to expenses.csv (safe)
         run: |
           python - <<'PY'
           import glob, os, pathlib, sys
@@ -28,23 +35,32 @@ jobs:
           out = root/'data'/'expenses.csv'
           out.parent.mkdir(parents=True, exist_ok=True)
           out.touch(exist_ok=True)
+
           files = sorted(set(glob.glob('payloads/*.csv')) |
                          set(glob.glob('payloads/**/*.csv', recursive=True)))
           print("Found payloads:", files)
-          if not files: sys.exit(0)
+          if not files:
+            sys.exit(0)
+
           with out.open('a', encoding='utf-8', newline='') as fout:
             for fp in files:
               with open(fp, 'r', encoding='utf-8', newline='') as fin:
-                txt = fin.read().rstrip('\n')
-                if txt: fout.write(txt + '\n')
+                txt = fin.read().strip()
+                if txt:
+                  if not txt.endswith('\n'): txt += '\n'
+                  fout.write(txt)
+
           for fp in files:
             try: os.remove(fp)
-            except: pass
+            except OSError as e: print("Could not remove", fp, e)
+
           print("Appended", len(files), "file(s) into", out)
           PY
 
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.x' }
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
 
       - name: Install deps
         run: pip install pandas matplotlib
@@ -54,21 +70,34 @@ jobs:
           python - <<'PY'
           import pandas as pd, matplotlib.pyplot as plt, pathlib
           p = pathlib.Path('data/expenses.csv')
-          if not p.exists() or p.stat().st_size==0: raise SystemExit(0)
+          if not p.exists() or p.stat().st_size==0:
+            print("No expenses.csv yet; skipping chart.")
+            raise SystemExit(0)
           df = pd.read_csv(p, names=['Tanggal','Toko','Kategori','Total'])
-          df['Tanggal']=pd.to_datetime(df['Tanggal'], errors='coerce')
-          df['Total']=pd.to_numeric(df['Total'], errors='coerce')
-          df=df.dropna()
-          if df.empty: raise SystemExit(0)
-          w=df.groupby(pd.Grouper(key='Tanggal', freq='W'))['Total'].sum()
-          plt.figure(figsize=(8,4)); w.plot(kind='bar', title='Pengeluaran Mingguan'); plt.ylabel('Total (Rp)')
-          plt.tight_layout(); plt.savefig('data/weekly_report.png'); print('Saved chart')
+          df['Tanggal'] = pd.to_datetime(df['Tanggal'], errors='coerce')
+          df['Total']   = pd.to_numeric(df['Total'], errors='coerce')
+          df = df.dropna()
+          if df.empty:
+            print("No valid rows; skipping chart.")
+            raise SystemExit(0)
+          weekly = df.groupby(pd.Grouper(key='Tanggal', freq='W'))['Total'].sum()
+          plt.figure(figsize=(8,4))
+          weekly.plot(kind='bar', title='Pengeluaran Mingguan')
+          plt.ylabel('Total (Rp)')
+          plt.tight_layout()
+          pathlib.Path('data').mkdir(parents=True, exist_ok=True)
+          plt.savefig('data/weekly_report.png')
+          print('Saved chart to data/weekly_report.png')
           PY
 
       - name: Commit changes
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git add data/expenses.csv data/weekly_report.png || true
+          git status
+          git add -A
           git commit -m "Ingest receipt payload(s)" || echo "No changes"
-          git push
+          git pull --rebase origin "$BRANCH_NAME" || true
+          git push origin HEAD:"$BRANCH_NAME"
