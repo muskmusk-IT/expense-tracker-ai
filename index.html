@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Expense Tracker AI</title>
+  <style>
+    body{font-family:ui-sans-serif,system-ui;max-width:900px;margin:40px auto;padding:0 16px;}
+    h1{margin:0 0 8px}
+    .card{border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin:16px 0;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th,td{border-bottom:1px solid #eee;padding:8px 10px;text-align:left;white-space:nowrap}
+    th{background:#fafafa}
+    .right{text-align:right}
+    img{max-width:100%;height:auto;border:1px solid #eee;border-radius:12px}
+    .muted{color:#6b7280;font-size:12px}
+  </style>
+</head>
+<body>
+  <h1>💸 Expense Tracker</h1>
+  <div class="muted">Data dari <code>data/expenses.csv</code> · Grafik dari <code>data/weekly_report.png</code></div>
+
+  <div class="card">
+    <h3>Grafik Mingguan</h3>
+    <img id="chart" src="data/weekly_report.png" alt="Weekly report" onerror="this.replaceWith(document.createTextNode('Belum ada grafik. Tambah payload dulu ya.'))">
+  </div>
+
+  <div class="card">
+    <h3>Transaksi</h3>
+    <div class="muted" id="meta"></div>
+    <div style="overflow:auto">
+      <table id="tbl"><thead></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <script>
+  async function main(){
+    try{
+      const res = await fetch('data/expenses.csv', {cache:'no-store'});
+      const txt = await res.text();
+      if(!txt.trim()){ document.getElementById('meta').textContent = 'CSV masih kosong.'; return; }
+      const rows = txt.trim().split(/\r?\n/).map(l => l.split(','));
+      const thead = document.querySelector('#tbl thead');
+      const tbody = document.querySelector('#tbl tbody');
+      thead.innerHTML = '<tr><th>Tanggal</th><th>Toko</th><th>Kategori</th><th class="right">Total (Rp)</th></tr>';
+      let total = 0;
+      rows.forEach(r=>{
+        const tr = document.createElement('tr');
+        const [tgl,toko,kat,amt] = r;
+        total += Number(amt||0);
+        tr.innerHTML = `<td>${tgl||''}</td><td>${toko||''}</td><td>${kat||''}</td><td class="right">${Number(amt||0).toLocaleString('id-ID')}</td>`;
+        tbody.appendChild(tr);
+      });
+      document.getElementById('meta').textContent = `Baris: ${rows.length} · Total: Rp ${total.toLocaleString('id-ID')}`;
+    }catch(e){
+      document.getElementById('meta').textContent = 'Gagal baca CSV: '+e;
+    }
+  }
+  main();
+  </script>
+</body>
+</html>
