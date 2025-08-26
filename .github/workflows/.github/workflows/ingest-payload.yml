@@ -1,0 +1,42 @@
+name: Ingest Receipt Payload
+on:
+  push:
+    paths:
+      - 'payloads/**/*.csv'
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.x' }
+      - name: Append payloads to expenses.csv
+        run: |
+          mkdir -p data
+          touch data/expenses.csv
+          cat payloads/*.csv >> data/expenses.csv || true
+          rm -f payloads/*.csv || true
+      - name: Install deps
+        run: pip install pandas matplotlib
+      - name: Generate weekly report
+        run: |
+          python - <<'PY'
+          import pandas as pd, matplotlib.pyplot as plt, pathlib
+          p = pathlib.Path('data/expenses.csv')
+          if not p.exists() or p.stat().st_size==0: raise SystemExit(0)
+          df = pd.read_csv(p, names=['Tanggal','Toko','Kategori','Total'])
+          df['Tanggal']=pd.to_datetime(df['Tanggal'], errors='coerce')
+          df['Total']=pd.to_numeric(df['Total'], errors='coerce')
+          df=df.dropna()
+          if df.empty: raise SystemExit(0)
+          w = df.groupby(pd.Grouper(key='Tanggal', freq='W'))['Total'].sum()
+          plt.figure(figsize=(8,4)); w.plot(kind='bar', title='Pengeluaran Mingguan'); plt.ylabel('Total (Rp)')
+          plt.tight_layout(); plt.savefig('data/weekly_report.png'); print('Saved chart')
+          PY
+      - name: Commit changes
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add data/expenses.csv data/weekly_report.png || true
+          git commit -m "Ingest receipt payload(s)" || echo "No changes"
+          git push
