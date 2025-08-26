@@ -3,119 +3,147 @@ name: Receipt OCR
 on:
   push:
     paths:
-      - 'receipts/**'            # jalan setiap ada foto baru di receipts/
-  workflow_dispatch: {}          # bisa dijalankan manual juga
+      - 'receipts/**'                 # jalan saat ada foto baru di receipts/
+  workflow_dispatch: {}               # bisa dijalankan manual juga
 
 jobs:
   ocr:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Install OCR deps (gratis)
         run: |
           sudo apt-get update
           sudo apt-get install -y tesseract-ocr libtesseract-dev
           python -m pip install --upgrade pip
-          pip install pytesseract pillow pandas matplotlib
+          pip install pytesseract pillow pillow-heif pandas matplotlib
 
-      - name: OCR images → append to CSV + build chart
+      - name: Show repo tree (debug)
+        run: |
+          pwd
+          ls -R
+          echo "----- receipts listing -----"
+          ls -l receipts || true
+
+      - name: OCR images → append CSV + build chart (inline)
         run: |
           python - <<'PY'
-          import os, re, csv, sys, datetime
+          import os, re, csv
           from pathlib import Path
-          from PIL import Image
+          from PIL import Image, UnidentifiedImageError
+          from pillow_heif import register_heif
           import pytesseract
           import pandas as pd
           import matplotlib.pyplot as plt
+          from datetime import date, datetime
 
-          ROOT = Path('.')
-          img_ext = {'.jpg','.jpeg','.png','.webp','.heic','.JPG','.PNG','.JPEG','.WEBP'}
-          receipts = sorted(p for p in ROOT.glob('receipts/**/*') if p.suffix in img_ext)
+          register_heif()  # enable HEIC/HEIF for Pillow
 
-          out_csv = ROOT/'data'/'expenses.csv'
-          out_csv.parent.mkdir(parents=True, exist_ok=True)
+          ROOT = Path(".")
+          RECEIPTS = ROOT / "receipts"
+          CSV = ROOT / "data" / "expenses.csv"
+          OUT = ROOT / "data" / "weekly_report.png"
+          DONE = ROOT / "data" / "processed.txt"
 
-          processed_file = ROOT/'data'/'processed.txt'
-          done = set(processed_file.read_text().splitlines()) if processed_file.exists() else set()
+          img_ext = {".jpg",".jpeg",".png",".webp",".heic",".JPG",".JPEG",".PNG",".WEBP",".HEIC"}
 
-          mapping = [
-              (re.compile(r'shell|pertamina|spbu', re.I),'Transportasi'),
-              (re.compile(r'grab|gojek|maxim', re.I),'Transportasi'),
-              (re.compile(r'starbucks|kopi|kenangan|janji|mcd|kfc|burger', re.I),'Makan & Minum'),
-              (re.compile(r'alfamart|indomaret|supermarket|carrefour', re.I),'Kebutuhan Harian'),
-              (re.compile(r'tokopedia|shopee|lazada|bukalapak', re.I),'Online Shopping'),
+          # collect images
+          imgs = sorted(p for p in RECEIPTS.rglob("*") if p.suffix in img_ext)
+          print(f"Found {len(imgs)} images")
+
+          done = set(DONE.read_text().splitlines()) if DONE.exists() else set()
+
+          # simple category rules
+          rules = [
+              (re.compile(r"shell|pertamina|spbu", re.I), "Transportasi"),
+              (re.compile(r"grab|gojek|maxim", re.I), "Transportasi"),
+              (re.compile(r"kopi|kenangan|janji|starbucks|mcd|kfc|burger", re.I), "Makan & Minum"),
+              (re.compile(r"alfamart|indomaret|supermarket|carrefour", re.I), "Kebutuhan Harian"),
+              (re.compile(r"tokopedia|shopee|lazada|bukalapak", re.I), "Online Shopping"),
           ]
 
           def parse(text:str):
-              # Tanggal
-              date = None
-              for pat in (r'(\d{2}/\d{2}/\d{4})', r'(\d{2}-\d{2}-\d{4})', r'(\d{4}-\d{2}-\d{2})'):
+              # tanggal
+              dt = None
+              for pat in (r"(\d{2}/\d{2}/\d{4})", r"(\d{2}-\d{2}-\d{4})", r"(\d{4}-\d{2}-\d{2})"):
                   m = re.search(pat, text)
                   if m:
                       s = m.group(1)
-                      for fmt in ('%d/%m/%Y','%d-%m-%Y','%Y-%m-%d'):
+                      for fmt in ("%d/%m/%Y","%d-%m-%Y","%Y-%m-%d"):
                           try:
-                              date = datetime.datetime.strptime(s, fmt).date()
+                              dt = datetime.strptime(s, fmt).date()
                               break
                           except: pass
-                      if date: break
-              if not date: date = datetime.date.today()
+                      if dt: break
+              if not dt: dt = date.today()
 
-              # Total (ambil angka terbesar)
+              # total = angka terbesar
               nums = []
-              for n in re.findall(r'[\d\.,]{4,}', text):
-                  n2 = int(re.sub(r'\D','', n))
+              for n in re.findall(r"[\d\.,]{4,}", text):
+                  n2 = int(re.sub(r"\D", "", n))
                   if n2: nums.append(n2)
               total = max(nums) if nums else 0
 
-              # Nama toko (baris atas yang berhuruf)
-              lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-              store = 'Unknown'
-              for ln in lines[:8]:
-                  if re.search(r'[A-Za-z]', ln): store = ln; break
+              # toko = baris awal berhuruf
+              store = "Unknown"
+              for ln in [ln.strip() for ln in text.splitlines() if ln.strip()]:
+                  if re.search(r"[A-Za-z]", ln):
+                      store = ln
+                      break
 
-              # Kategori
-              cat = 'Lain-lain'
-              for rx, c in mapping:
+              # kategori
+              cat = "Lain-lain"
+              for rx, c in rules:
                   if rx.search(text): cat = c; break
 
-              return date.isoformat(), store, cat, total
+              return dt.isoformat(), store, cat, total
 
           new_rows = []
-          for p in receipts:
+          for p in imgs:
               key = str(p)
-              if key in done: continue
+              if key in done: 
+                  print(f"Skip (processed): {p}")
+                  continue
               try:
-                  txt = pytesseract.image_to_string(Image.open(p))
+                  im = Image.open(p)
+                  if im.mode not in ("RGB","L"): im = im.convert("RGB")
+                  txt = pytesseract.image_to_string(im)
                   row = parse(txt)
+                  print(f"Parsed {p.name}: {row}")
                   new_rows.append(row)
                   done.add(key)
-                  print(f'Parsed {p}: {row}')
-              except Exception as e:
-                  print(f'⚠️ Gagal parse {p}: {e}')
+              except (UnidentifiedImageError, Exception) as e:
+                  print(f"⚠️ Gagal baca {p.name}: {e}")
 
-          # Tulis CSV & processed log
+          # tulis CSV & processed log
           if new_rows:
-              with out_csv.open('a', newline='') as f:
+              CSV.parent.mkdir(parents=True, exist_ok=True)
+              with CSV.open("a", newline="") as f:
                   csv.writer(f).writerows(new_rows)
-              processed_file.write_text('\n'.join(sorted(done)))
+              DONE.parent.mkdir(parents=True, exist_ok=True)
+              DONE.write_text("\n".join(sorted(done)))
 
-          # Bangun grafik mingguan (kalau CSV ada data)
-          if out_csv.exists() and out_csv.stat().st_size > 0:
-              df = pd.read_csv(out_csv, names=['Tanggal','Toko','Kategori','Total'])
-              df['Tanggal'] = pd.to_datetime(df['Tanggal'], errors='coerce')
-              df['Total']   = pd.to_numeric(df['Total'], errors='coerce')
+          # bikin chart kalau CSV ada data
+          if CSV.exists() and CSV.stat().st_size > 0:
+              df = pd.read_csv(CSV, names=["Tanggal","Toko","Kategori","Total"])
+              df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
+              df["Total"] = pd.to_numeric(df["Total"], errors="coerce")
               df = df.dropna()
               if not df.empty:
-                  weekly = df.groupby(pd.Grouper(key='Tanggal', freq='W'))['Total'].sum()
+                  weekly = df.groupby(pd.Grouper(key="Tanggal", freq="W"))["Total"].sum()
                   plt.figure(figsize=(8,4))
-                  weekly.plot(kind='bar', title='Pengeluaran Mingguan')
-                  plt.ylabel('Total (Rp)')
+                  weekly.plot(kind="bar", title="Pengeluaran Mingguan")
+                  plt.ylabel("Total (Rp)")
                   plt.tight_layout()
-                  (ROOT/'data'/'weekly_report.png').parent.mkdir(parents=True, exist_ok=True)
-                  plt.savefig(ROOT/'data'/'weekly_report.png')
-                  print('📊 weekly_report.png dibuat')
+                  OUT.parent.mkdir(parents=True, exist_ok=True)
+                  plt.savefig(OUT)
+                  print(f"📊 Saved chart to {OUT}")
+              else:
+                  print("CSV valid tapi kosong setelah dibersihkan.")
+          else:
+              print("Belum ada CSV; mungkin semua gambar gagal parse.")
           PY
 
       - name: Commit updates
