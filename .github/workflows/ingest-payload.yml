@@ -1,20 +1,26 @@
 name: Ingest Receipt Payload
 
+# Penting: kasih hak nulis ke GITHUB_TOKEN di workflow
+permissions:
+  contents: write
+
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
     paths:
-      - 'payloads/**/*.csv'         # jalan saat ada CSV baru di payloads/
-  workflow_dispatch: {}              # supaya bisa Run workflow manual
+      - 'payloads/**/*.csv'
+  workflow_dispatch: {}
 
 jobs:
   ingest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo (keep credentials)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
 
-      - name: Append payloads to expenses.csv (safe)
         run: |
           python - <<'PY'
           import glob, os, pathlib, sys
