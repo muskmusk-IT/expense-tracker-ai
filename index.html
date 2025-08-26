@@ -3,60 +3,216 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Expense Tracker AI</title>
+  <title>Expense Tracker</title>
   <style>
-    body{font-family:ui-sans-serif,system-ui;max-width:900px;margin:40px auto;padding:0 16px;}
-    h1{margin:0 0 8px}
-    .card{border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin:16px 0;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-    table{width:100%;border-collapse:collapse;font-size:14px}
-    th,td{border-bottom:1px solid #eee;padding:8px 10px;text-align:left;white-space:nowrap}
-    th{background:#fafafa}
-    .right{text-align:right}
-    img{max-width:100%;height:auto;border:1px solid #eee;border-radius:12px}
-    .muted{color:#6b7280;font-size:12px}
+    :root{
+      --bg:#0b0f14; --panel:#0f1620; --muted:#96a0aa; --text:#e8eef4; --line:#1c2531;
+      --brand:#22d3ee; --chip:#1b2a3a; --good:#34d399; --warn:#f59e0b; --bad:#ef4444;
+    }
+    @media (prefers-color-scheme: light){
+      :root{
+        --bg:#f7fafc; --panel:#ffffff; --muted:#516173; --text:#0f1720; --line:#e6edf3;
+        --chip:#eef5fb;
+      }
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto}
+    .wrap{max-width:1100px;margin:auto;padding:28px 18px}
+    header{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;margin-bottom:18px}
+    h1{font-size:20px;margin:0}
+    .muted{color:var(--muted)}
+    .row{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+    .card{grid-column:span 12;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+    @media (min-width:720px){.card.sm-4{grid-column:span 4}.card.sm-8{grid-column:span 8}}
+    .pill{display:inline-flex;gap:8px;align-items:center;background:var(--chip);border:1px solid var(--line);padding:6px 10px;border-radius:999px}
+    .kpi{font-weight:700;font-size:20px}
+    .controls{display:flex;gap:10px;flex-wrap:wrap}
+    input[type="search"]{background:transparent;border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:10px;min-width:220px;outline:none}
+    .toggle{cursor:pointer}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--line);padding:10px 8px;text-align:left;white-space:nowrap}
+    th{color:var(--muted);font-weight:600}
+    td.right,th.right{text-align:right}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .badge{padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:var(--chip);font-size:12px}
+    .catRow{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line)}
+    .catRow:last-child{border-bottom:0}
+    a.link{color:var(--brand);text-decoration:none}
+    footer{margin:24px 0;color:var(--muted);font-size:12px}
   </style>
 </head>
 <body>
-  <h1>💸 Expense Tracker</h1>
-  <div class="muted">Data dari <code>data/expenses.csv</code> · Grafik dari <code>data/weekly_report.png</code></div>
+  <div class="wrap">
+    <header>
+      <h1>💸 Expense Tracker</h1>
+      <div class="controls">
+        <input id="q" type="search" placeholder="Cari toko / kategori…" />
+        <label class="pill toggle">
+          <input id="dm" type="checkbox" style="accent-color:var(--brand);margin-right:6px" />
+          Dark mode
+        </label>
+      </div>
+    </header>
 
-  <div class="card">
-    <h3>Grafik Mingguan</h3>
-    <img id="chart" src="data/weekly_report.png" alt="Weekly report" onerror="this.replaceWith(document.createTextNode('Belum ada grafik. Tambah payload dulu ya.'))">
-  </div>
+    <div class="row">
+      <section class="card sm-4">
+        <div class="muted">Total Semua</div>
+        <div class="kpi" id="kpi-total">Rp -</div>
+        <div class="chips"><span class="badge" id="rows">0 transaksi</span><span class="badge" id="last">-</span></div>
+      </section>
 
-  <div class="card">
-    <h3>Transaksi</h3>
-    <div class="muted" id="meta"></div>
-    <div style="overflow:auto">
-      <table id="tbl"><thead></thead><tbody></tbody></table>
+      <section class="card sm-4">
+        <div class="muted">Minggu Ini</div>
+        <div class="kpi" id="kpi-week">Rp -</div>
+        <div id="week-range" class="muted" style="font-size:12px"></div>
+      </section>
+
+      <section class="card sm-4">
+        <div class="muted">Bulan Ini</div>
+        <div class="kpi" id="kpi-month">Rp -</div>
+        <div class="muted" id="month-name" style="font-size:12px"></div>
+      </section>
+
+      <section class="card sm-8">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h3 style="margin:0;font-size:16px">Grafik Mingguan</h3>
+          <a class="link" href="data/weekly_report.png" target="_blank">Buka gambar</a>
+        </div>
+        <img id="chart" src="data/weekly_report.png" alt="Weekly report"
+             onerror="this.replaceWith(document.createTextNode('Belum ada grafik. Tambah transaksi dulu.'))">
+      </section>
+
+      <section class="card sm-4">
+        <h3 style="margin:0 0 10px;font-size:16px">Kategori Teratas</h3>
+        <div id="cats"></div>
+      </section>
+
+      <section class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h3 style="margin:0;font-size:16px">Transaksi</h3>
+          <div class="muted" id="meta"></div>
+        </div>
+        <div style="overflow:auto">
+          <table id="tbl">
+            <thead><tr>
+              <th data-sort="Tanggal">Tanggal ⬍</th>
+              <th data-sort="Toko">Toko ⬍</th>
+              <th data-sort="Kategori">Kategori ⬍</th>
+              <th class="right" data-sort="Total">Total (Rp) ⬍</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
     </div>
+
+    <footer>
+      Data dari <code>data/expenses.csv</code>. Grafik dari <code>data/weekly_report.png</code>.
+      Halaman auto-refresh grafik & membaca CSV terbaru tanpa cache.
+    </footer>
   </div>
 
-  <script>
-  async function main(){
-    try{
-      const res = await fetch('data/expenses.csv', {cache:'no-store'});
-      const txt = await res.text();
-      if(!txt.trim()){ document.getElementById('meta').textContent = 'CSV masih kosong.'; return; }
-      const rows = txt.trim().split(/\r?\n/).map(l => l.split(','));
-      const thead = document.querySelector('#tbl thead');
-      const tbody = document.querySelector('#tbl tbody');
-      thead.innerHTML = '<tr><th>Tanggal</th><th>Toko</th><th>Kategori</th><th class="right">Total (Rp)</th></tr>';
-      let total = 0;
-      rows.forEach(r=>{
-        const tr = document.createElement('tr');
-        const [tgl,toko,kat,amt] = r;
-        total += Number(amt||0);
-        tr.innerHTML = `<td>${tgl||''}</td><td>${toko||''}</td><td>${kat||''}</td><td class="right">${Number(amt||0).toLocaleString('id-ID')}</td>`;
-        tbody.appendChild(tr);
-      });
-      document.getElementById('meta').textContent = `Baris: ${rows.length} · Total: Rp ${total.toLocaleString('id-ID')}`;
-    }catch(e){
-      document.getElementById('meta').textContent = 'Gagal baca CSV: '+e;
-    }
-  }
-  main();
-  </script>
+<script>
+const csvUrl = 'data/expenses.csv';
+const chartEl = document.getElementById('chart');
+chartEl.src = 'data/weekly_report.png?ts=' + Date.now(); // bust cache
+
+// Dark mode toggle
+const dm = document.getElementById('dm');
+dm.checked = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+dm.addEventListener('change', () => {
+  document.documentElement.style.colorScheme = dm.checked ? 'dark' : 'light';
+});
+
+// Helpers
+const idr = n => 'Rp ' + Number(n||0).toLocaleString('id-ID');
+const toDate = s => new Date(s);
+const startOfWeek = d => { const x=new Date(d); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; };
+const endOfWeek = d => { const x=startOfWeek(d); x.setDate(x.getDate()+6); x.setHours(23,59,59,999); return x; };
+
+let rows = [], sortKey = 'Tanggal', sortAsc = false;
+
+async function loadCSV(){
+  const res = await fetch(csvUrl, {cache:'no-store'});
+  const txt = await res.text();
+  if(!txt.trim()) return [];
+  return txt.trim().split(/\r?\n/).map(l=>{
+    const [Tanggal,Toko,Kategori,Total] = l.split(',');
+    return {Tanggal, Toko, Kategori, Total: Number(Total||0)};
+  });
+}
+
+function render(){
+  // KPI
+  const totalAll = rows.reduce((a,b)=>a+b.Total,0);
+  document.getElementById('kpi-total').textContent = idr(totalAll);
+  document.getElementById('rows').textContent = rows.length + ' transaksi';
+  const last = rows.at(-1)?.Tanggal || '-';
+  document.getElementById('last').textContent = 'last: ' + last;
+
+  const now = new Date();
+  const sw = startOfWeek(now), ew = endOfWeek(now);
+  document.getElementById('week-range').textContent =
+    sw.toLocaleDateString('id-ID') + ' – ' + ew.toLocaleDateString('id-ID');
+  const weekSum = rows.filter(r=>{ const d=toDate(r.Tanggal); return d>=sw && d<=ew; })
+                      .reduce((a,b)=>a+b.Total,0);
+  document.getElementById('kpi-week').textContent = idr(weekSum);
+
+  const month = now.getMonth(), year = now.getFullYear();
+  document.getElementById('month-name').textContent =
+    now.toLocaleString('id-ID',{month:'long',year:'numeric'});
+  const monthSum = rows.filter(r=>{ const d=toDate(r.Tanggal); return d.getMonth()==month && d.getFullYear()==year; })
+                       .reduce((a,b)=>a+b.Total,0);
+  document.getElementById('kpi-month').textContent = idr(monthSum);
+
+  // Kategori
+  const byCat = {};
+  rows.forEach(r=> byCat[r.Kategori] = (byCat[r.Kategori]||0) + r.Total );
+  const top = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const cats = document.getElementById('cats'); cats.innerHTML='';
+  top.forEach(([k,v])=>{
+    const div = document.createElement('div'); div.className='catRow';
+    div.innerHTML = `<span>${k}</span><strong>${idr(v)}</strong>`;
+    cats.appendChild(div);
+  });
+
+  // Tabel
+  const q = document.getElementById('q').value.toLowerCase();
+  let filtered = rows.filter(r => (r.Toko+r.Kategori+r.Tanggal).toLowerCase().includes(q));
+  filtered.sort((a,b)=>{
+    if (sortKey==='Total') return sortAsc ? a.Total-b.Total : b.Total-a.Total;
+    if (sortKey==='Tanggal') return (sortAsc?1:-1)*(toDate(a.Tanggal)-toDate(b.Tanggal));
+    return (sortAsc?1:-1)*(a[sortKey].localeCompare(b[sortKey]));
+  });
+
+  const tbody = document.querySelector('#tbl tbody'); tbody.innerHTML='';
+  filtered.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.Tanggal}</td><td>${r.Toko}</td><td>${r.Kategori}</td><td class="right">${idr(r.Total)}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('meta').textContent =
+    `${filtered.length} baris ditampilkan · sumber: data/expenses.csv`;
+}
+
+document.getElementById('q').addEventListener('input', render);
+document.querySelectorAll('#tbl th[data-sort]').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const k = th.getAttribute('data-sort');
+    sortAsc = (sortKey===k) ? !sortAsc : (k==='Tanggal'); // default: terbaru dulu
+    sortKey = k; render();
+  });
+});
+
+(async function init(){
+  rows = await loadCSV();
+  render();
+  // refresh ringan tiap 60 dtk biar kalau ada commit baru, tabel kebaca
+  setInterval(async()=>{
+    rows = await loadCSV(); render();
+    chartEl.src = 'data/weekly_report.png?ts=' + Date.now();
+  }, 60000);
+})();
+</script>
 </body>
 </html>
