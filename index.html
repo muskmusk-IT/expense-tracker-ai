@@ -13,9 +13,10 @@
     body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto}
     .wrap{max-width:980px;margin:32px auto;padding:0 16px}
 
-    .toolbar{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-bottom:14px}
+    .toolbar{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-bottom:14px;flex-wrap:wrap}
     .btn{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;display:inline-flex;gap:8px;align-items:center;box-shadow:0 1px 2px rgba(0,0,0,.05)}
     .btn.primary{background:#4aa7ff;color:#fff;border-color:#4aa7ff}
+    .btn.danger{background:#ef4444;color:#fff;border-color:#ef4444}
     .btn:active{transform:translateY(1px)}
 
     .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 16px rgba(31,41,55,.06);overflow:hidden}
@@ -55,45 +56,19 @@
     .foot{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-top:1px solid var(--line);background:#fafbff}
     .muted{color:var(--muted)}
 
-    .controls{display:flex;gap:8px;align-items:center}
+    .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     select{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
 
-    /* 📱 Responsive layout */
     @media (max-width: 768px) {
-      .bill-head {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-      }
-      .bill-meta {
-        text-align: left;
-      }
-      .grid {
-        grid-template-columns: 1fr;
-      }
-      .totals {
-        justify-content: center;
-      }
-      .totals .box {
-        width: 100%;
-      }
-      .foot {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-      }
-      .toolbar {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-      }
-      table thead {
-        font-size: 12px;
-      }
-      table th, table td {
-        font-size: 13px;
-        padding: 10px 6px;
-      }
+      .bill-head {flex-direction: column;align-items: flex-start;gap: 12px;}
+      .bill-meta {text-align: left;}
+      .grid {grid-template-columns: 1fr;}
+      .totals {justify-content: center;}
+      .totals .box {width: 100%;}
+      .foot {flex-direction: column;align-items: flex-start;gap: 10px;}
+      .toolbar {flex-direction: column;align-items: flex-start;gap: 12px;}
+      table thead {font-size: 12px;}
+      table th, table td {font-size: 13px;padding: 10px 6px;}
     }
   </style>
 </head>
@@ -102,10 +77,12 @@
     <div class="toolbar">
       <div class="controls">
         <select id="range">
+          <option value="day">Hari ini</option>
           <option value="month">Bulan ini</option>
           <option value="week">Minggu ini</option>
           <option value="all">Semua waktu</option>
         </select>
+        <button class="btn danger" id="reset">C</button>
         <button class="btn" id="print">Print</button>
         <a class="btn" href="data/weekly_report.png" target="_blank">Lihat Grafik</a>
         <button class="btn primary" id="refresh">Refresh</button>
@@ -178,7 +155,7 @@ const idr = n => (new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR'
 const toDate = s => new Date(s);
 const startOfWeek = d => {const x=new Date(d);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);x.setHours(0,0,0,0);return x;};
 const endOfWeek = d => {const x=startOfWeek(d);x.setDate(x.getDate()+6);x.setHours(23,59,59,999);return x;};
-function hash(str){let h=0;for(let i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h|=0;}return Math.abs(h);} 
+function hash(str){let h=0;for(let i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h|=0;}return Math.abs(h);}
 
 async function loadCSV(){
   const res = await fetch(CSV_URL+'?ts='+Date.now(),{cache:'no-store'});
@@ -193,6 +170,7 @@ async function loadCSV(){
 function applyRange(rows, range){
   const now = new Date();
   if(range==='all') return rows;
+  if(range==='day') return rows.filter(r=>r.Tanggal === now.toISOString().slice(0,10));
   if(range==='week'){
     const a = startOfWeek(now), b=endOfWeek(now);
     return rows.filter(r=>{const d=toDate(r.Tanggal);return d>=a && d<=b;});
@@ -229,7 +207,7 @@ function render(rows){
     const r = rangeSel.value;
     const filtered = applyRange(all, r).sort((a,b)=> new Date(a.Tanggal)-new Date(b.Tanggal));
     render(filtered);
-    const textRange = r==='all' ? 'Semua waktu' : r==='week' ? 'Minggu ini' : 'Bulan ini';
+    const textRange = r==='all' ? 'Semua waktu' : r==='week' ? 'Minggu ini' : r==='day' ? 'Hari ini' : 'Bulan ini';
     document.getElementById('periode').textContent = textRange;
   }
   run();
@@ -237,6 +215,42 @@ function render(rows){
 
   document.getElementById('refresh').onclick = ()=>location.reload();
   document.getElementById('print').onclick = ()=>window.print();
+
+  document.getElementById('reset').onclick = async ()=>{
+    const konfirmasi = confirm("Yakin ingin menghapus semua data (reset)?");
+    if(!konfirmasi) return;
+
+    const url = `https://api.github.com/repos/muskmusk-it/expense-tracker-ai/contents/data/expenses.csv`;
+    const headers = {
+      "Authorization": "Bearer GITHUB_TOKEN", // Ganti manual di deploy ya
+      "Content-Type": "application/json"
+    };
+
+    const getRes = await fetch(url, { headers });
+    const data = await getRes.json();
+    const sha = data.sha;
+
+    const body = {
+      message: "🔥 Reset CSV dari tombol C",
+      content: btoa(""),
+      branch: "main",
+      sha
+    };
+
+    const putRes = await fetch(url, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(body)
+    });
+
+    if (putRes.ok) {
+      alert("✅ CSV berhasil di-reset!");
+      location.reload();
+    } else {
+      alert("❌ Gagal reset CSV!");
+      console.error(await putRes.text());
+    }
+  }
 })();
 </script>
 </body>
