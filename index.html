@@ -13,13 +13,11 @@
     body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto}
     .wrap{max-width:980px;margin:32px auto;padding:0 16px}
 
-    /* Top toolbar */
     .toolbar{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-bottom:14px}
     .btn{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;display:inline-flex;gap:8px;align-items:center;box-shadow:0 1px 2px rgba(0,0,0,.05)}
     .btn.primary{background:#4aa7ff;color:#fff;border-color:#4aa7ff}
     .btn:active{transform:translateY(1px)}
 
-    /* Invoice card */
     .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 16px rgba(31,41,55,.06);overflow:hidden}
     .ribbon{position:absolute;left:-12px;top:18px;background:#4aa7ff;color:#fff;padding:6px 12px 6px 20px;border-radius:0 8px 8px 0;box-shadow:0 2px 6px rgba(0,0,0,.1);font-size:12px}
 
@@ -42,7 +40,6 @@
     .panel h4{margin:0 0 6px 0;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
     .panel .name{font-weight:700}
 
-    /* Table */
     table{width:100%;border-collapse:collapse;margin-top:18px}
     thead th{background:var(--accent);color:#fff;font-weight:600}
     th,td{padding:12px 10px;border-bottom:1px solid var(--line)}
@@ -60,6 +57,44 @@
 
     .controls{display:flex;gap:8px;align-items:center}
     select{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
+
+    /* 📱 Responsive layout */
+    @media (max-width: 768px) {
+      .bill-head {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .bill-meta {
+        text-align: left;
+      }
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .totals {
+        justify-content: center;
+      }
+      .totals .box {
+        width: 100%;
+      }
+      .foot {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      table thead {
+        font-size: 12px;
+      }
+      table th, table td {
+        font-size: 13px;
+        padding: 10px 6px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -143,7 +178,6 @@ const idr = n => (new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR'
 const toDate = s => new Date(s);
 const startOfWeek = d => {const x=new Date(d);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);x.setHours(0,0,0,0);return x;};
 const endOfWeek = d => {const x=startOfWeek(d);x.setDate(x.getDate()+6);x.setHours(23,59,59,999);return x;};
-
 function hash(str){let h=0;for(let i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h|=0;}return Math.abs(h);} 
 
 async function loadCSV(){
@@ -163,7 +197,6 @@ function applyRange(rows, range){
     const a = startOfWeek(now), b=endOfWeek(now);
     return rows.filter(r=>{const d=toDate(r.Tanggal);return d>=a && d<=b;});
   }
-  // default: month
   return rows.filter(r=>{const d=toDate(r.Tanggal);return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();});
 }
 
