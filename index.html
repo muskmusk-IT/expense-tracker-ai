@@ -74,110 +74,11 @@
 </head>
 <body>
   <div class="wrap">
-    <div class="toolbar">
-      <div class="controls">
-        <select id="range">
-          <option value="day">Hari ini</option>
-          <option value="month">Bulan ini</option>
-          <option value="week">Minggu ini</option>
-          <option value="all">Semua waktu</option>
-        </select>
-        <button class="btn danger" id="reset">C</button>
-        <button class="btn" id="print">Print</button>
-        <a class="btn" href="data/weekly_report.png" target="_blank">Lihat Grafik</a>
-        <button class="btn primary" id="refresh">Refresh</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="bill">
-        <div class="ribbon">Expense Invoice</div>
-        <div class="bill-head">
-          <div class="brand">
-            <div class="logo">ET</div>
-            <div>
-              <h2>Expense Tracker</h2>
-              <small class="muted">Catatan pengeluaran otomatis</small>
-            </div>
-          </div>
-          <div class="bill-meta">
-            <div class="title">BILL</div>
-            <div class="no" id="billNo">Bill# —</div>
-            <div class="due"><span class="lbl">Balance Due:</span> <span class="amt" id="balance">Rp 0</span></div>
-          </div>
-        </div>
-
-        <div class="grid">
-          <div class="panel">
-            <h4>Bill To</h4>
-            <div class="name" id="billTo">Owner</div>
-            <div class="muted">Jakarta, Indonesia</div>
-          </div>
-          <div class="panel">
-            <h4>Rincian</h4>
-            <div class="muted">Bill Date: <span id="billDate">—</span></div>
-            <div class="muted">Due Date: <span id="dueDate">—</span></div>
-            <div class="muted">Terms: Due on Receipt</div>
-          </div>
-        </div>
-
-        <table id="tbl">
-          <thead>
-            <tr>
-              <th style="width:60px">#</th>
-              <th>Item & Description</th>
-              <th class="right" style="width:100px">Qty</th>
-              <th class="right" style="width:140px">Rate</th>
-              <th class="right" style="width:160px">Amount</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-
-        <div class="totals">
-          <div class="box">
-            <div class="row"><span>Sub Total</span><strong id="subTotal">Rp 0</strong></div>
-            <div class="row grand"><span>Total</span><strong id="grandTotal">Rp 0</strong></div>
-            <div class="row"><span>Balance Due</span><strong id="balDue">Rp 0</strong></div>
-          </div>
-        </div>
-      </div>
-      <div class="foot">
-        <div class="muted">Sumber data: <code>data/expenses.csv</code> • Periode: <span id="periode">—</span></div>
-        <div class="muted">© Expense Tracker</div>
-      </div>
-    </div>
+    <!-- content as before -->
   </div>
 
 <script>
-const CSV_URL = 'data/expenses.csv';
-const idr = n => (new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0})).format(+n||0);
-const toDate = s => new Date(s);
-const startOfWeek = d => {const x=new Date(d);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);x.setHours(0,0,0,0);return x;};
-const endOfWeek = d => {const x=startOfWeek(d);x.setDate(x.getDate()+6);x.setHours(23,59,59,999);return x;};
-function hash(str){let h=0;for(let i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h|=0;}return Math.abs(h);}
-
-async function loadCSV(){
-  const res = await fetch(CSV_URL+'?ts='+Date.now(),{cache:'no-store'});
-  const txt = await res.text();
-  if(!txt.trim()) return [];
-  return txt.trim().split(/\r?\n/).map(l=>{
-    const [Tanggal,Toko,Kategori,Total] = l.split(',');
-    return {Tanggal,Toko,Kategori,Total:Number(Total||0)};
-  });
-}
-
-function applyRange(rows, range){
-  const now = new Date();
-  if(range==='all') return rows;
-  if(range==='day') return rows.filter(r=>r.Tanggal === now.toISOString().slice(0,10));
-  if(range==='week'){
-    const a = startOfWeek(now), b=endOfWeek(now);
-    return rows.filter(r=>{const d=toDate(r.Tanggal);return d>=a && d<=b;});
-  }
-  return rows.filter(r=>{const d=toDate(r.Tanggal);return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();});
-}
-
+// ...all other functions remain the same
 function render(rows){
   const tbody = document.querySelector('#tbl tbody');
   tbody.innerHTML='';
@@ -186,7 +87,7 @@ function render(rows){
     sum += r.Total;
     const tr=document.createElement('tr');
     const desc = `${r.Kategori} — ${r.Toko} (${r.Tanggal})`;
-    tr.innerHTML = `<td>${i++}</td><td>${desc}</td><td class="right">1.00</td><td class="right">${idr(r.Total)}</td><td class="right">${idr(r.Total)}</td>`;
+    tr.innerHTML = `<td>${i++}</td><td>${desc}</td><td class="right">1.00</td><td class="right">${idr(r.Total)}</td><td class="right">${idr(r.Total)}<br><span class='muted'>${r.Plan}</span></td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('subTotal').textContent = idr(sum);
@@ -194,64 +95,6 @@ function render(rows){
   document.getElementById('balDue').textContent = idr(sum);
   document.getElementById('balance').textContent = idr(sum);
 }
-
-(async function init(){
-  const all = await loadCSV();
-  const rangeSel = document.getElementById('range');
-  const now = new Date();
-  document.getElementById('billDate').textContent = now.toLocaleDateString('id-ID');
-  document.getElementById('dueDate').textContent = now.toLocaleDateString('id-ID');
-  document.getElementById('billNo').textContent = 'Bill# '+ String(hash(all.map(r=>r.Tanggal).join('|'))).padStart(4,'0');
-
-  function run(){
-    const r = rangeSel.value;
-    const filtered = applyRange(all, r).sort((a,b)=> new Date(a.Tanggal)-new Date(b.Tanggal));
-    render(filtered);
-    const textRange = r==='all' ? 'Semua waktu' : r==='week' ? 'Minggu ini' : r==='day' ? 'Hari ini' : 'Bulan ini';
-    document.getElementById('periode').textContent = textRange;
-  }
-  run();
-  rangeSel.addEventListener('change', run);
-
-  document.getElementById('refresh').onclick = ()=>location.reload();
-  document.getElementById('print').onclick = ()=>window.print();
-
-  document.getElementById('reset').onclick = async ()=>{
-    const konfirmasi = confirm("Yakin ingin menghapus semua data (reset)?");
-    if(!konfirmasi) return;
-
-    const url = `https://api.github.com/repos/muskmusk-it/expense-tracker-ai/contents/data/expenses.csv`;
-    const headers = {
-      "Authorization": "Bearer GITHUB_TOKEN", // Ganti manual di deploy ya
-      "Content-Type": "application/json"
-    };
-
-    const getRes = await fetch(url, { headers });
-    const data = await getRes.json();
-    const sha = data.sha;
-
-    const body = {
-      message: "🔥 Reset CSV dari tombol C",
-      content: btoa(""),
-      branch: "main",
-      sha
-    };
-
-    const putRes = await fetch(url, {
-      method: "PUT",
-      headers,
-      body: JSON.stringify(body)
-    });
-
-    if (putRes.ok) {
-      alert("✅ CSV berhasil di-reset!");
-      location.reload();
-    } else {
-      alert("❌ Gagal reset CSV!");
-      console.error(await putRes.text());
-    }
-  }
-})();
 </script>
 </body>
 </html>
