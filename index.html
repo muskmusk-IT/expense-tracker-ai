@@ -12,73 +12,136 @@
     html,body{height:100%}
     body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto}
     .wrap{max-width:980px;margin:32px auto;padding:0 16px}
-
     .toolbar{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-bottom:14px;flex-wrap:wrap}
     .btn{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;display:inline-flex;gap:8px;align-items:center;box-shadow:0 1px 2px rgba(0,0,0,.05)}
     .btn.primary{background:#4aa7ff;color:#fff;border-color:#4aa7ff}
-    .btn.danger{background:#ef4444;color:#fff;border-color:#ef4444}
-    .btn:active{transform:translateY(1px)}
-
+    .btn.tiny{padding:4px 8px;font-size:12px;border-radius:6px}
     .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 16px rgba(31,41,55,.06);overflow:hidden}
     .ribbon{position:absolute;left:-12px;top:18px;background:#4aa7ff;color:#fff;padding:6px 12px 6px 20px;border-radius:0 8px 8px 0;box-shadow:0 2px 6px rgba(0,0,0,.1);font-size:12px}
-
     .bill{position:relative;padding:24px}
     .bill-head{display:flex;gap:16px;align-items:center;justify-content:space-between}
     .brand{display:flex;gap:12px;align-items:center}
     .logo{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:#e9f5ff;border:1px solid var(--line);font-weight:800;color:#2b8cff}
     .brand h2{margin:0;font-size:22px}
     .brand small{color:var(--muted)}
-
     .bill-meta{text-align:right}
     .bill-meta .title{font-size:32px;letter-spacing:1px;font-weight:800}
     .bill-meta .no{color:var(--muted)}
     .due{margin-top:8px;background:#f8fafc;border:1px dashed var(--line);display:inline-block;padding:10px 14px;border-radius:12px}
     .due .lbl{color:var(--muted);margin-right:8px}
     .due .amt{font-weight:800;font-size:18px}
-
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
     .panel{border:1px solid var(--line);border-radius:12px;padding:12px}
     .panel h4{margin:0 0 6px 0;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
     .panel .name{font-weight:700}
-
     table{width:100%;border-collapse:collapse;margin-top:18px}
     thead th{background:var(--accent);color:#fff;font-weight:600}
     th,td{padding:12px 10px;border-bottom:1px solid var(--line)}
     td.right,th.right{text-align:right}
     tbody tr:hover{background:#fafbff}
-
     .totals{display:flex;justify-content:flex-end;margin-top:18px}
     .totals .box{width:320px;border:1px solid var(--line);border-radius:12px;padding:12px}
     .totals .row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)}
     .totals .row:last-child{border-bottom:0}
     .totals .grand{font-weight:800}
-
     .foot{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-top:1px solid var(--line);background:#fafbff}
     .muted{color:var(--muted)}
-
     .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     select{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
-
-    @media (max-width: 768px) {
-      .bill-head {flex-direction: column;align-items: flex-start;gap: 12px;}
-      .bill-meta {text-align: left;}
-      .grid {grid-template-columns: 1fr;}
-      .totals {justify-content: center;}
-      .totals .box {width: 100%;}
-      .foot {flex-direction: column;align-items: flex-start;gap: 10px;}
-      .toolbar {flex-direction: column;align-items: flex-start;gap: 12px;}
-      table thead {font-size: 12px;}
-      table th, table td {font-size: 13px;padding: 10px 6px;}
-    }
+    @media (max-width: 768px) {.bill-head{flex-direction:column;align-items:flex-start;gap:12px}.bill-meta{text-align:left}.grid{grid-template-columns:1fr}.totals{justify-content:center}.totals .box{width:100%}.foot{flex-direction:column;align-items:flex-start;gap:10px}.toolbar{flex-direction:column;align-items:flex-start;gap:12px}table thead{font-size:12px}table th,table td{font-size:13px;padding:10px 6px}}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <!-- content as before -->
+    <div class="toolbar">
+      <div class="controls">
+        <select id="range">
+          <option value="day">Hari ini</option>
+          <option value="month">Bulan ini</option>
+          <option value="week">Minggu ini</option>
+          <option value="all">Semua waktu</option>
+        </select>
+        <button class="btn" id="print">Print</button>
+        <a class="btn" href="data/weekly_report.png" target="_blank">Lihat Grafik</a>
+        <button class="btn primary" id="refresh">Refresh</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="bill">
+        <div class="ribbon">Expense Invoice</div>
+        <div class="bill-head">
+          <div class="brand">
+            <div class="logo">ET</div>
+            <div><h2>Expense Tracker</h2><small class="muted">Catatan pengeluaran otomatis</small></div>
+          </div>
+          <div class="bill-meta">
+            <div class="title">BILL</div>
+            <div class="no" id="billNo">Bill# —</div>
+            <div class="due"><span class="lbl">Balance Due:</span> <span class="amt" id="balance">Rp 0</span></div>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="panel">
+            <h4>Bill To</h4>
+            <div class="name" id="billTo">Owner</div>
+            <div class="muted">Jakarta, Indonesia</div>
+          </div>
+          <div class="panel">
+            <h4>Rincian</h4>
+            <div class="muted">Bill Date: <span id="billDate">—</span></div>
+            <div class="muted">Due Date: <span id="dueDate">—</span></div>
+            <div class="muted">Terms: Due on Receipt</div>
+          </div>
+        </div>
+        <table id="tbl">
+          <thead>
+            <tr><th style="width:60px">#</th><th>Item & Description</th><th class="right" style="width:100px">Qty</th><th class="right" style="width:140px">Rate</th><th class="right" style="width:160px">Amount</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="totals">
+          <div class="box">
+            <div class="row"><span>Sub Total</span><strong id="subTotal">Rp 0</strong></div>
+            <div class="row grand"><span>Total</span><strong id="grandTotal">Rp 0</strong></div>
+            <div class="row"><span>Balance Due</span><strong id="balDue">Rp 0</strong></div>
+          </div>
+        </div>
+      </div>
+      <div class="foot">
+        <div class="muted">Sumber data: <code>data/expenses.csv</code> • Periode: <span id="periode">—</span></div>
+        <div class="muted">© Expense Tracker</div>
+      </div>
+    </div>
   </div>
-
 <script>
-// ...all other functions remain the same
+const CSV_URL = 'data/expenses.csv';
+const idr = n => (new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0})).format(+n||0);
+const toDate = s => new Date(s);
+const startOfWeek = d => {const x=new Date(d);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);x.setHours(0,0,0,0);return x;};
+const endOfWeek = d => {const x=startOfWeek(d);x.setDate(x.getDate()+6);x.setHours(23,59,59,999);return x;};
+function hash(str){let h=0;for(let i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h|=0;}return Math.abs(h);}
+
+async function loadCSV(){
+  const res = await fetch(CSV_URL+'?ts='+Date.now(),{cache:'no-store'});
+  const txt = await res.text();
+  if(!txt.trim()) return [];
+  return txt.trim().split(/\r?\n/).map((l,i)=>{
+    const [Tanggal,Toko,Kategori,Total,Plan='Plan A'] = l.split(',');
+    return {Tanggal,Toko,Kategori,Total:Number(Total||0),Plan, idx: i};
+  });
+}
+
+function applyRange(rows, range){
+  const now = new Date();
+  if(range==='all') return rows;
+  if(range==='day') return rows.filter(r=>r.Tanggal === now.toISOString().slice(0,10));
+  if(range==='week'){
+    const a = startOfWeek(now), b=endOfWeek(now);
+    return rows.filter(r=>{const d=toDate(r.Tanggal);return d>=a && d<=b;});
+  }
+  return rows.filter(r=>{const d=toDate(r.Tanggal);return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();});
+}
+
 function render(rows){
   const tbody = document.querySelector('#tbl tbody');
   tbody.innerHTML='';
@@ -87,7 +150,8 @@ function render(rows){
     sum += r.Total;
     const tr=document.createElement('tr');
     const desc = `${r.Kategori} — ${r.Toko} (${r.Tanggal})`;
-    tr.innerHTML = `<td>${i++}</td><td>${desc}</td><td class="right">1.00</td><td class="right">${idr(r.Total)}</td><td class="right">${idr(r.Total)}<br><span class='muted'>${r.Plan}</span></td>`;
+    const planBtn = `<button class="btn tiny" data-idx="${r.idx}" data-plan="${r.Plan}">${r.Plan}</button>`;
+    tr.innerHTML = `<td>${i++}</td><td>${desc}</td><td class="right">1.00</td><td class="right">${idr(r.Total)}</td><td class="right">${idr(r.Total)}<br><small class="muted">${r.Plan}</small><br>${planBtn}</td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('subTotal').textContent = idr(sum);
@@ -95,6 +159,73 @@ function render(rows){
   document.getElementById('balDue').textContent = idr(sum);
   document.getElementById('balance').textContent = idr(sum);
 }
+
+(async function init(){
+  const all = await loadCSV();
+  const rangeSel = document.getElementById('range');
+  const now = new Date();
+  document.getElementById('billDate').textContent = now.toLocaleDateString('id-ID');
+  document.getElementById('dueDate').textContent = now.toLocaleDateString('id-ID');
+  document.getElementById('billNo').textContent = 'Bill# '+ String(hash(all.map(r=>r.Tanggal).join('|'))).padStart(4,'0');
+
+  function run(){
+    const r = rangeSel.value;
+    const filtered = applyRange(all, r).sort((a,b)=> new Date(a.Tanggal)-new Date(b.Tanggal));
+    render(filtered);
+    document.getElementById('periode').textContent = r==='all' ? 'Semua waktu' : r==='week' ? 'Minggu ini' : r==='day' ? 'Hari ini' : 'Bulan ini';
+
+    document.querySelectorAll('.btn.tiny').forEach(btn => {
+      btn.onclick = async () => {
+        const idx = +btn.dataset.idx;
+        const currPlan = btn.dataset.plan;
+        const newPlan = currPlan === 'Plan A' ? 'Plan B' : 'Plan A';
+        if (!confirm(`Pindahkan struk ini ke ${newPlan}?`)) return;
+
+        const res = await fetch(CSV_URL+'?ts='+Date.now(),{cache:'no-store'});
+        const txt = await res.text();
+        const lines = txt.trim().split(/\r?\n/);
+        const newLines = lines.map((l, i) => {
+          if(i === idx){ const parts = l.split(','); parts[4] = newPlan; return parts.join(','); }
+          return l;
+        });
+
+        const url = `https://api.github.com/repos/muskmusk-it/expense-tracker-ai/contents/data/expenses.csv`;
+        const headers = {
+          "Authorization": "Bearer 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",
+          "Content-Type": "application/json"
+        };
+        const getRes = await fetch(url, { headers });
+        const data = await getRes.json();
+        const sha = data.sha;
+
+        const body = {
+          message: `\u{1F504} Ganti plan ke ${newPlan} (idx ${idx})`,
+          content: btoa(newLines.join('\n')),
+          branch: "main",
+          sha
+        };
+
+        const putRes = await fetch(url, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(body)
+        });
+
+        if (putRes.ok) {
+          alert(`\u{2705} Struk dipindah ke ${newPlan}!`);
+          location.reload();
+        } else {
+          alert("\u{274C} Gagal update plan!");
+          console.error(await putRes.text());
+        }
+      }
+    });
+  }
+  run();
+  rangeSel.addEventListener('change', run);
+  document.getElementById('refresh').onclick = ()=>location.reload();
+  document.getElementById('print').onclick = ()=>window.print();
+})();
 </script>
 </body>
 </html>
