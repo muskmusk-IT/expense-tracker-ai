@@ -127,12 +127,15 @@ async function loadCSV(){
   if(!text.trim()) return [];
 
   return text.trim().split(/\r?\n/).map(row=>{
-    const [Tanggal,Toko,Kategori,Total] = row.split(',');
-    return {
-      Tanggal,
-      Deskripsi: `${Kategori} - ${Toko}`,
-      Total: Number(Total || 0)
-    };
+    const [Tanggal,Merchant,Total,Sumber,Raw] = l.split(',');
+      return {
+        Tanggal,
+        Toko: Merchant,
+        Kategori: Sumber,
+        Total: Number(Total||0),
+        Plan: 'Auto',
+        idx: i
+      };
   });
 }
 
