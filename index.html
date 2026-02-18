@@ -103,7 +103,7 @@ Total Bulan Ini: <span id="totalText">Rp 0</span>
 </div>
 
 <script>
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT-Bbh2MRHdykki8llY8J4n0H3WIs21BE24v91LbYyOy7Sa3nnI7_hpyd8KHYEY_rjzTuzslf9W9J2U/pub?gid=0&single=true&output=csv';
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT-Bbh2MRHdykki8IlY8J4nOH3WIs21BE24v9lLByyOy7Sa3nn7_hpyd8KHYEY_rjzTuzsIf9W9J2U/pub?gid=0&single=true&output=csv';
 const tbody = document.getElementById('tbody');
 const totalText = document.getElementById('totalText');
 const monthSelect = document.getElementById('monthSelect');
@@ -127,7 +127,7 @@ async function loadCSV(){
   if(!text.trim()) return [];
 
   return text.trim().split(/\r?\n/).map(row=>{
-    const [Tanggal,Merchant,Total,Sumber,Raw] = l.split(',');
+    const [Tanggal,Toko,Kategori,Total,Plan='Plan A'] = l.split(',');
       return {
         Tanggal,
         Toko: Merchant,
